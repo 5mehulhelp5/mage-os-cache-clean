@@ -11,7 +11,7 @@
 (def process (js/require "process"))
 
 (def key->cachetypes {"c" ["config"]
-                      "b" ["block_html"]
+                      "b" ["block_html" "hyva_cms" "hyva_admin_dashboard"]
                       "l" ["layout"]
                       "f" ["full_page"]
                       "a" [] ;; a for all
