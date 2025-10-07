@@ -11,12 +11,13 @@
 (def process (js/require "process"))
 
 (def key->cachetypes {"c" ["config"]
-                      "b" ["block_html" "hyva_cms" "hyva_admin_dashboard"]
+                      "b" ["block_html"]
                       "l" ["layout"]
                       "f" ["full_page"]
                       "a" [] ;; a for all
                       "v" ["block_html" "layout" "full_page" "translate"] ;; v for view
-                      "t" ["translate"]})
+                      "t" ["translate"]
+                      "m" ["hyva_cms" "hyva_admin_dashboard"]})
 
 (def key->static-content-areas {"F" ["frontend"]
                                 "A" ["adminhtml"]})
