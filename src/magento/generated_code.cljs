@@ -33,6 +33,15 @@
 (defn- php-class->generated-file [generated-code-dir class-name]
   (str generated-code-dir (php/php-class->file class-name)))
 
+(defn- normalize-php-class [class-name]
+  (if (string/starts-with? class-name "\\")
+    class-name
+    (str "\\" class-name)))
+
+(defn- generated-interceptor-file [base-dir php-class]
+  (when-let [dir (generated-code-dir base-dir)]
+    (php-class->generated-file dir (str (normalize-php-class php-class) "\\Interceptor"))))
+
 (defn- generated-files-for-class [base-dir php-class]
   (when-let [dir (generated-code-dir base-dir)]
     (->> php-class
@@ -80,4 +89,22 @@
       (log/notice "Removing all generated extension attributes classes")
       (log/debug (str "In base dir " base-dir ":\n")
                  (apply str (interpose ", " (map #(without-base-path base-dir %) files))))
+      (run! rm files))))
+
+(defn- di-xml-plugin-classes [di-xml]
+  (try
+    (let [contents (fs/slurp di-xml)]
+      (->> (re-seq #"<type\b[^>]*\bname\s*=\s*['\"]([^'\"]+)['\"][^>]*>[\s\S]*?</type>" contents)
+           (filter #(string/includes? (first %) "<plugin"))
+           (map second)
+           distinct))
+    (catch :default e [])))
+
+(defn remove-generated-interceptors-based-on-di-xml! [base-dir di-xml]
+  (let [files (->> (di-xml-plugin-classes di-xml)
+                   (map #(generated-interceptor-file base-dir %))
+                   (filter fs/exists?))]
+    (when (seq files)
+      (log/notice "Removing generated interceptors from" (str base-dir ":\n")
+                  (apply str (interpose ", " (map #(without-base-path base-dir %) files))))
       (run! rm files))))

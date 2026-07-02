@@ -190,26 +190,46 @@
   (when-let [matches (re-matches #".+/etc/([a-z_]+)/di.xml$" file)]
     (get matches 1)))
 
+(defn- staticcache-dirs [base-dir]
+  [(str base-dir "generated/staticcache/")
+   (str base-dir "generated/metadata/staticcache/")])
+
+(defn- generated-metadata-staticcache? [base-dir]
+  (fs/dir? (str base-dir "generated/metadata/staticcache/")))
+
 (defn- rm-creatuity-cache-area [area]
-  (let [cache-file-name (str "generated/staticcache/global_primary_" area "_compiled_plugins.php")]
+  (let [cache-file-name (str "global_primary_" area "_compiled_plugins.php")]
     (run! (fn [base-dir]
-            (let [cache-file (str base-dir cache-file-name)]
-              (when (fs/exists? cache-file)
-                (do
-                  (log/notice "Removing creatuity interceptor cache file" cache-file)
-                  (fs/rm cache-file))))) (mage/all-base-dirs))))
+            (run! (fn [cache-dir]
+                    (let [cache-file (str cache-dir cache-file-name)]
+                      (when (fs/exists? cache-file)
+                        (do
+                          (log/notice "Removing creatuity interceptor cache file" cache-file)
+                          (fs/rm cache-file)))))
+                  (staticcache-dirs base-dir)))
+          (mage/all-base-dirs))))
 
 (defn- rm-creatuity-cache []
-  (run! #(let [cache-dir (str % "generated/staticcache/")]
-           (when (fs/dir? cache-dir)
-             (do
-               (log/notice "Removing creatuity interceptors cache" cache-dir)
-               (fs/rm-contents cache-dir)))) (mage/all-base-dirs)))
+  (run! (fn [base-dir]
+          (run! (fn [cache-dir]
+                  (when (fs/dir? cache-dir)
+                    (do
+                      (log/notice "Removing creatuity interceptors cache" cache-dir)
+                      (fs/rm-contents cache-dir))))
+                (staticcache-dirs base-dir)))
+        (mage/all-base-dirs)))
+
+(defn- remove-generated-interceptors-for-di-xml! [file]
+  (run! (fn [base-dir]
+          (when (generated-metadata-staticcache? base-dir)
+            (generated/remove-generated-interceptors-based-on-di-xml! base-dir file)))
+        (mage/all-base-dirs)))
 
 (defn- clean-creatuity-interceptor-cache [file]
   (if-let [area (di-xml-area file)]
     (rm-creatuity-cache-area area)
-    (rm-creatuity-cache)))
+    (rm-creatuity-cache))
+  (remove-generated-interceptors-for-di-xml! file))
 
 (defn file-changed [file]
   (when (process-changed-file? file)
